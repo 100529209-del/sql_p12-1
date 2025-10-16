@@ -82,7 +82,7 @@ CREATE TABLE Notification (
 	NotificationId NUMBER NOT NULL,
 	PaymentId NUMBER NOT NULL,
 	RecipientId NUMBER NOT NULL,
-	NotificationText VARCHAR2(30) NOT NULL,
+	NotificationText VARCHAR2(300) NOT NULL,
 	NotificationTime TIMESTAMP NOT NULL,
 	IsRead CHAR(1) NOT NULL CHECK (IsRead IN ('Y', 'N')),
 	constraint Notification_PK PRIMARY KEY (NotificationId));
@@ -91,7 +91,7 @@ CREATE TABLE MessageGroup (
 	MessageGroupId NUMBER NOT NULL,
 	AppGroupId NUMBER NOT NULL,
 	SenderId NUMBER NOT NULL,
-	MessageText VARCHAR2(30) NOT NULL,
+	MessageText VARCHAR2(300) NOT NULL,
 	MessageTime TIMESTAMP NOT NULL,
 	constraint MessageGroup_PK PRIMARY KEY (MessageGroupId));
 
@@ -100,7 +100,7 @@ CREATE TABLE MessagePrivate (
 	AppGroupId NUMBER NOT NULL,
 	SenderId NUMBER NOT NULL,
 	RecipientId NUMBER NOT NULL,
-	MessageText VARCHAR2(30) NOT NULL,
+	MessageText VARCHAR2(300) NOT NULL,
 	MessageTime TIMESTAMP NOT NULL,
 	constraint MessagePrivate_PK PRIMARY KEY (MessagePrivateId));
 
@@ -357,11 +357,39 @@ INSERT INTO MessagePrivate (MessagePrivateId, SenderId, RecipientId, MessageText
 INSERT INTO MessagePrivate (MessagePrivateId, SenderId, RecipientId, MessageText, MessageTime) VALUES (812, 101, 111, 'Sure Ana, what do you need?', SYSTIMESTAMP);
 
 --Queries
+--1. Average of payment by user by group ordered alphabetically
+SELECT AppUser.FirstName,AppUser.LastName, AppGroup.GroupName, AVG(Amount) AS AveragePayment
+from Payment
+Join AppUser ON Payment.PayerId = AppUser.AppUserId
+left Join AppGroup ON Payment.AppGroupId = AppGroup.AppGroupId
+group by FirstName,LastName, GroupName
+ORDER BY AppUser.FirstName, AppUser.LastName, AppGroup.GroupName;
 --2. Obtain the average amount of the expenses for the months of June, July, and August of the year 2025. 
 SELECT AVG(Expense.Amount), Expense.ExpenseDate
 FROM Expense
 WHERE ExpenseDate >= TODATE(2025-06-01) AND ExpenseDate <= TODATE(2025-08-30)
-GROUP BY AppGroup.AppGroupId, Category.CategoryId
+GROUP BY AppGroup.AppGroupId, Category.CategoryId;
+-- Query 3
+SELECT * FROM (
+    SELECT 
+        AppUser.FirstName, 
+        AppUser.LastName, 
+        (SELECT COUNT(*) 
+         FROM MessageGroup 
+         WHERE MessageGroup.SenderId = AppUser.AppUserId) AS TotalGroupMessages,
+        (SELECT COUNT(*) 
+         FROM MessagePrivate 
+         WHERE MessagePrivate.SenderId = AppUser.AppUserId) AS TotalPrivateMessages,
+        ((SELECT COUNT(*) 
+          FROM MessageGroup 
+          WHERE MessageGroup.SenderId = AppUser.AppUserId) +
+         (SELECT COUNT(*) 
+          FROM MessagePrivate 
+          WHERE MessagePrivate.SenderId = AppUser.AppUserId)) AS OverallTotalMessages
+    FROM AppUser
+) AS UserMessageCounts;
+WHERE UserMessageCounts.OverallTotalMessages > 0
+ORDER BY UserMessageCounts.OverallTotalMessages DESC;
 
 --4. In progress
 SELECT AppGroup.GroupName, AppUser.FirstName, AppUser.LastName
